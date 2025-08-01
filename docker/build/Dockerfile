@@ -27,5 +27,7 @@ COPY --from=runner /atreus/configs/service/${SERVICE_NAME} configs/
 RUN if [ "$SERVICE_NAME" = "publish" ] ; then \
     apt-get update && \
     apt-get install --no-install-recommends -y ffmpeg ; \
+    rm -rf /var/lib/apt/lists/* ; \
 fi
+
 CMD bin/${SERVICE_NAME} -conf configs

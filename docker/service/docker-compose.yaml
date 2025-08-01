@@ -1,16 +1,6 @@
 version: "3"
 services:
-  consul:
-    image: consul:1.12.2
-    container_name: consul
-    restart: always
-    ports:
-      - "18500:8500"
-    volumes:
-      - ../../_data/consul/data:/consul/data:rw
-    command: "agent -server -ui -bootstrap-expect=1 -client=0.0.0.0"
-    networks:
-      - atreus_net
+  common_service_depends: &common_service_depends
     depends_on:
       user-service:
         condition: service_started
@@ -25,6 +15,19 @@ services:
       message-service:
         condition: service_started
 
+#  consul:
+#    image: consul:1.12.2
+#    container_name: consul
+#    restart: always
+#    ports:
+#      - "18500:8500"
+#    volumes:
+#      - ../../_data/consul/data:/consul/data:rw
+#    command: "agent -server -ui -bootstrap-expect=1 -client=0.0.0.0"
+#    networks:
+#      - atreus_net
+#    <<: *common_service_depends
+
   nginx:
     image: nginx:1.24.0
     container_name: nginx
@@ -36,21 +39,7 @@ services:
       - "../../_data/nginx/logs:/var/log/nginx"
     networks:
       - atreus_net
-    depends_on:
-      user-service:
-        condition: service_started
-      publish-service:
-        condition: service_started
-      comment-service:
-        condition: service_started
-      favorite-service:
-        condition: service_started
-      relation-service:
-        condition: service_started
-      message-service:
-        condition: service_started
-      consul:
-        condition: service_started
+    <<: *common_service_depends
 
   mysql:
     image: mysql/mysql-server:8.0.32
@@ -134,20 +123,26 @@ services:
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_HEAP_OPTS=-Xmx512M -Xms256M
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false #生产关闭
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://:9092
       # broker.id，必须唯一
       - KAFKA_BROKER_ID=1
     healthcheck:
       test:
         [
-          "CMD",
-          "/opt/bitnami/kafka/bin/kafka-topics.sh",
-          "--list",
+          "CMD-SHELL",
+          "/opt/bitnami/kafka/bin/kafka-metadata-quorum.sh",
           "--bootstrap-server=localhost:9092",
+          "describe",
+          "--status",
+          "| grep -q 'Status: Healthy' &&",
+          "/opt/bitnami/kafka/bin/kafka-broker-api-versions.sh",
+          "--bootstrap-server=localhost:9092"
         ]
-      interval: 5s
-      retries: 3
+      interval: 10s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
     networks:
       - atreus_net
 
