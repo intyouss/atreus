@@ -58,6 +58,7 @@ Atreus 参照了[Kratos Layout](https://github.com/go-kratos/kratos-layout). 这
 - [Redis](https://github.com/redis/go-redis)
 - [Kafka](https://github.com/segmentio/kafka-go)
 - [Minio](https://github.com/minio/minio)
+- [nginx](https://github.com/nginx/nginx)
 
 ## 开始
 
