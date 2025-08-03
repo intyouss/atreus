@@ -84,7 +84,8 @@ func (r *messageRepo) GetMessageList(ctx context.Context, toUserId uint32, preMs
 		return r.GetCache(ctx, userId, toUserId, preMsgTime)
 	}
 	// 加锁防止私聊两用户同时请求导致重复创建
-	ok, err = r.AddCacheMutex(ctx)
+	mutexKey := fmt.Sprintf("mutex:%d-%d", Min(userId, toUserId), Max(userId, toUserId))
+	ok, err = r.AddCacheMutex(ctx, mutexKey)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +106,7 @@ func (r *messageRepo) GetMessageList(ctx context.Context, toUserId uint32, preMs
 				r.log.Error(err)
 				return
 			}
-			if err = r.DelCacheMutex(ctx); err != nil {
+			if err = r.DelCacheMutex(ctx, mutexKey); err != nil {
 				r.log.Error(err)
 				return
 			}
@@ -117,8 +118,8 @@ func (r *messageRepo) GetMessageList(ctx context.Context, toUserId uint32, preMs
 }
 
 // AddCacheMutex 缓存加锁
-func (r *messageRepo) AddCacheMutex(ctx context.Context) (bool, error) {
-	ok, err := r.data.cache.SetNX(ctx, "mutex", "", time.Second*time.Duration(timeFactor)).Result()
+func (r *messageRepo) AddCacheMutex(ctx context.Context, key string) (bool, error) {
+	ok, err := r.data.cache.SetNX(ctx, key, "", time.Second*time.Duration(timeFactor)).Result()
 	if err != nil {
 		return false, errors.Join(ErrRedisSet, err)
 	}
@@ -126,8 +127,8 @@ func (r *messageRepo) AddCacheMutex(ctx context.Context) (bool, error) {
 }
 
 // DelCacheMutex 缓存解锁
-func (r *messageRepo) DelCacheMutex(ctx context.Context) error {
-	_, err := r.data.cache.Del(ctx, "mutex").Result()
+func (r *messageRepo) DelCacheMutex(ctx context.Context, key string) error {
+	_, err := r.data.cache.Del(ctx, key).Result()
 	if err != nil {
 		return errors.Join(ErrRedisDelete, err)
 	}
@@ -301,4 +302,18 @@ func setKey(userId, toUserId uint32) string {
 		userId, toUserId = toUserId, userId
 	}
 	return fmt.Sprint(strconv.Itoa(int(userId)), "-", strconv.Itoa(int(toUserId)))
+}
+
+func Min(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func Max(a, b uint32) uint32 {
+	if a > b {
+		return a
+	}
+	return b
 }
