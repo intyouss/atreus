@@ -83,7 +83,7 @@ func (r *publishRepo) UploadAll(ctx context.Context, fileBytes []byte, title str
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := r.UploadCoverImage(context.Background(), fileBytes, title)
+		err := r.UploadCoverImage(ctx, fileBytes, title)
 		if err != nil {
 			errChan <- err
 			return
@@ -93,7 +93,7 @@ func (r *publishRepo) UploadAll(ctx context.Context, fileBytes []byte, title str
 	// 上传视频
 	go func() {
 		defer wg.Done()
-		err := r.UploadVideo(context.Background(), fileBytes, title)
+		err := r.UploadVideo(ctx, fileBytes, title)
 		if err != nil {
 			errChan <- err
 			return
@@ -106,7 +106,7 @@ func (r *publishRepo) UploadAll(ctx context.Context, fileBytes []byte, title str
 	default:
 		go func() {
 			// 获取视频和封面的url
-			err := r.SaveVideoInfo(context.Background(), title, userId)
+			err := r.SaveVideoInfo(ctx, title, userId)
 			if err != nil {
 				r.log.Error(err)
 				return
